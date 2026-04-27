@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import createMiddleware from 'next-intl/middleware'
 import { routing } from './i18n/routing'
 
@@ -9,7 +10,6 @@ import { routing } from './i18n/routing'
 const PUBLIC_PATHS = [
   '/',
   '/login',
-  '/overview',
   '/api/github/oauth',
 ]
 
@@ -56,36 +56,38 @@ function shouldSkipAuth(pathname: string): boolean {
  * - 减少客户端渲染开销
  */
 export default async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const handleI18n = createMiddleware(routing)
+  const { pathname, search } = request.nextUrl
 
   // 1. 跳过API和静态资源
   if (shouldSkipAuth(pathname)) {
-    return createMiddleware(routing)(request)
+    return handleI18n(request)
   }
 
   // 2. 提取locale后的真实路径
   // pathname可能是: /zh-CN/dashboard, /en-US/settings, 或 /dashboard
   const localeMatch = pathname.match(/^\/(zh-CN|en-US)(.*)$/)
+  const locale = localeMatch?.[1]
   const realPath = localeMatch ? localeMatch[2] || '/' : pathname
 
   // 3. 公开路径直接通过（但仍需处理国际化）
   if (PUBLIC_PATHS.some(path => realPath === path || realPath.startsWith(path + '/'))) {
-    return createMiddleware(routing)(request)
+    return handleI18n(request)
   }
 
   // 4. 检查session cookie（认证守卫）
   const sessionCookie = request.cookies.get('BELLA-SESSION')
 
   if (!sessionCookie) {
-    // 未登录，继续到后端路由
-    // 后端会根据配置自动处理：
-    // - CAS模式：返回401 + X-Redirect-Login响应头，客户端自动跳转企业登录页
-    // - OAuth模式：返回401，客户端通过AuthProvider重定向到/login页面
-    return createMiddleware(routing)(request)
+    const loginPath = locale ? `/${locale}/login` : '/login'
+    const redirect = `${pathname}${search}`
+    const loginUrl = new URL(loginPath, request.url)
+    loginUrl.searchParams.set('redirect', redirect)
+    return NextResponse.redirect(loginUrl)
   }
 
   // 5. 已登录，继续处理国际化
-  return createMiddleware(routing)(request)
+  return handleI18n(request)
 }
 
 export const config = {

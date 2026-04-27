@@ -2,6 +2,34 @@ import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { getBackendOrigin } from '@/lib/config/backend';
 import { mockSecretLogin } from '@/mocks/login/authData';
+import type { LoginResponse, UserInfo } from '@/lib/types/auth';
+
+function normalizeLoginResponse(input: any): LoginResponse {
+  if (input?.success !== undefined) {
+    return {
+      success: Boolean(input.success),
+      user: input.success ? (input.user as UserInfo | undefined) : undefined,
+      message: input.message,
+    };
+  }
+
+  if (input && typeof input === 'object' && 'code' in input) {
+    const success = input.code === 200;
+    const data = input.data;
+    const user = data?.user ?? data;
+
+    return {
+      success,
+      user: success ? (user as UserInfo | undefined) : undefined,
+      message: input.message,
+    };
+  }
+
+  return {
+    success: false,
+    message: '登录失败',
+  };
+}
 
 /**
  * API: 密钥登录
@@ -34,7 +62,7 @@ export async function POST(request: NextRequest) {
       // 模拟网络延迟
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const mockData = mockSecretLogin(secret);
+      const mockData = normalizeLoginResponse(mockSecretLogin(secret));
 
       if (mockData.success) {
         // 登录成功：设置 Mock Cookie
@@ -86,7 +114,7 @@ export async function POST(request: NextRequest) {
       credentials: 'include',
     });
 
-    const data = await response.json();
+    const data = normalizeLoginResponse(await response.json());
 
     // 转发 Set-Cookie 头（登录成功后后端会设置 Session Cookie）
     const setCookie = response.headers.get('set-cookie');

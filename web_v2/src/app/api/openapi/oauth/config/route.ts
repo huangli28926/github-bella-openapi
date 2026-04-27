@@ -2,6 +2,50 @@ import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { getBackendOrigin } from '@/lib/config/backend';
 import { getOAuthConfigByScenario, currentScenario } from '@/mocks/login/authData';
+import type { OAuthProvider } from '@/lib/types/auth';
+
+function getDisplayName(name: string): string {
+  const normalized = name.toLowerCase();
+  switch (normalized) {
+    case 'github':
+      return 'GitHub';
+    case 'google':
+      return 'Google';
+    case 'twitter':
+      return 'Twitter';
+    case 'facebook':
+      return 'Facebook';
+    default:
+      return name;
+  }
+}
+
+function normalizeProviders(input: unknown): OAuthProvider[] {
+  if (Array.isArray(input)) {
+    return input
+      .map((provider: any) => {
+        const name = provider?.name || provider?.type;
+        const authUrl = provider?.authUrl;
+
+        if (!name || !authUrl) {
+          return null;
+        }
+
+        return {
+          name,
+          displayName: provider?.displayName || getDisplayName(name),
+          authUrl,
+        } satisfies OAuthProvider;
+      })
+      .filter((provider): provider is OAuthProvider => provider !== null);
+  }
+
+  if (input && typeof input === 'object' && Array.isArray((input as any).providers)) {
+    return normalizeProviders((input as any).providers);
+  }
+
+  return [];
+}
 
 /**
  * API: 获取 OAuth 配置
@@ -14,12 +58,9 @@ import { getOAuthConfigByScenario, currentScenario } from '@/mocks/login/authDat
  * {
  *   "providers": [
  *     {
- *       "name": "GitHub",
+ *       "name": "github",
+ *       "displayName": "GitHub",
  *       "authUrl": "https://github.com/login/oauth/authorize?..."
- *     },
- *     {
- *       "name": "Google",
- *       "authUrl": "https://accounts.google.com/o/oauth2/v2/auth?..."
  *     }
  *   ]
  * }
@@ -42,7 +83,7 @@ export async function GET(request: NextRequest) {
     // 模拟网络延迟（可选）
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    return NextResponse.json(mockData, { status: 200 });
+    return NextResponse.json({ providers: normalizeProviders(mockData) }, { status: 200 });
   }
 
   // 真实后端模式
@@ -67,9 +108,12 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    return NextResponse.json(data, {
-      status: response.status,
-    });
+    return NextResponse.json(
+      { providers: normalizeProviders(data) },
+      {
+        status: response.status,
+      }
+    );
   } catch (error) {
     console.error('[Backend GET /openapi/oauth/config Error]', error);
     return NextResponse.json(
