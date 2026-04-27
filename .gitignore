@@ -104,3 +104,4 @@ private-loggers.xml
 /playwright/.auth/
 .claude/
 .mcp.json
+tests/.auth/

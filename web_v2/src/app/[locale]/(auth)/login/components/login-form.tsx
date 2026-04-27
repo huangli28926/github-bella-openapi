@@ -38,10 +38,6 @@ export function LoginForm({ redirect = '/overview' }: LoginFormProps) {
     setIsLoading(true)
     try {
       await login(secret)
-      toast({
-        title: '登录成功',
-        description: '欢迎回来！'
-      })
       router.push(redirect)
     } catch (error) {
       toast({
