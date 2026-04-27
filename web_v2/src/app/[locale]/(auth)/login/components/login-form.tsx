@@ -12,11 +12,7 @@ interface LoginFormProps {
   redirect?: string
 }
 
-/**
- * 密钥登录表单组件
- * 支持用户使用密钥（secret）进行登录
- */
-export function LoginForm({ redirect = '/overview' }: LoginFormProps) {
+export function LoginForm({ redirect = '/' }: LoginFormProps) {
   const [secret, setSecret] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
@@ -43,10 +39,14 @@ export function LoginForm({ redirect = '/overview' }: LoginFormProps) {
         description: '欢迎回来！'
       })
       router.push(redirect)
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.response?.data?.message
+        || error?.message
+        || (error?.response?.status === 503 ? '未实现密钥登录功能' : '登录失败，请检查密钥是否正确')
+
       toast({
         title: '登录失败',
-        description: error instanceof Error ? error.message : '密钥无效',
+        description: message,
         variant: 'destructive'
       })
     } finally {

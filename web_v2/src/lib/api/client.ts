@@ -1,31 +1,26 @@
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 
+function normalizeOrigin(value?: string): string {
+  if (!value) return '';
+
+  const withProtocol = /^https?:\/\//.test(value) ? value : `http://${value}`;
+  return withProtocol.replace(/\/$/, '');
+}
+
 /**
  * 动态解析 baseURL
  * - 支持 SSR/CSR 环境
- * - 自动适配 HTTP/HTTPS 协议
- * - 开发环境使用相对路径
+ * - 未配置真实后端时默认走相对路径
+ * - 兼容旧配置 NEXT_PUBLIC_API_HOST
  */
 export const getBaseURL = (): string => {
-  // 开发环境使用相对路径
-  if (process.env.NODE_ENV === 'development') {
-    return '/';
-  }
+  const configuredOrigin = normalizeOrigin(
+    process.env.NEXT_PUBLIC_API_ORIGIN ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_HOST
+  );
 
-  // 读取环境变量配置
-  const apiHost = process.env.NEXT_PUBLIC_API_HOST;
-  console.log('apiHost ====', apiHost)
-  if (!apiHost) {
-    return '/'; // 未配置时使用相对路径
-  }
-
-  // SSR: 服务端渲染时使用 http 协议
-  if (typeof window === 'undefined') {
-    return `http://${apiHost}`;
-  }
-
-  // CSR: 客户端使用当前协议（支持 http/https 自动切换）
-  return `${window.location.protocol}//${apiHost}`;
+  return configuredOrigin || '/';
 };
 
 /**
@@ -150,22 +145,16 @@ apiClient.interceptors.response.use(
         case 401:
           error.message = extractErrorMessage('未授权访问');
 
-          // 401 自动重定向逻辑
-          // 检查是否有 X-Redirect-Login 响应头（CAS企业登录模式）
+          const requestUrl = error.config?.url || '';
+          const isUserInfoRequest = requestUrl.endsWith('/openapi/userInfo') || requestUrl.endsWith('/api/openapi/userInfo');
           const loginUrl = error.response.headers['X-Redirect-Login'] || error.response.headers['x-redirect-login'];
 
-          if (loginUrl && typeof window !== 'undefined') {
-
-            // CAS模式：直接跳转到企业登录页
-            // 添加回跳 URL 参数（包含当前页面地址）
+          if (loginUrl && typeof window !== 'undefined' && !isUserInfoRequest) {
             const redirectUrl = loginUrl + encodeURIComponent(window.location.href);
             window.location.href = redirectUrl;
-            // 返回永不 resolve 的 Promise，阻塞后续请求
             return new Promise(() => {});
           }
 
-          // OAuth模式：没有X-Redirect-Login响应头
-          // 由AuthGuard组件处理重定向到/login页面
           break;
         case 403:
           error.message = extractErrorMessage('禁止访问');

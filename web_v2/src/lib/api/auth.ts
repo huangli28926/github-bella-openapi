@@ -5,7 +5,7 @@
  */
 
 import { get, post } from './client'
-import type { UserInfo, OAuthConfig, LoginRequest, LoginResponse } from '@/lib/types/auth'
+import type { UserInfo, OAuthProvider, LoginRequest } from '@/lib/types/auth'
 
 /**
  * 获取API路径前缀
@@ -32,7 +32,7 @@ function getApiPath(path: string): string {
  */
 export async function getUserInfo(): Promise<UserInfo | null> {
   try {
-    const data = await get<UserInfo>(getApiPath('/console/userInfo'))
+    const data = await get<UserInfo>(getApiPath('/openapi/userInfo'))
 
     // 验证返回数据是否包含userId
     if (data?.userId) {
@@ -63,18 +63,17 @@ export async function getUserInfo(): Promise<UserInfo | null> {
  * 使用场景:
  * - 用户在登录页面输入密钥进行登录
  */
-export async function login(secret: string): Promise<UserInfo> {
-  const response = await post<LoginResponse>(
+export async function login(secret: string): Promise<UserInfo | true> {
+  const result = await post<UserInfo | true | null>(
     getApiPath('/openapi/login'),
     { secret } as LoginRequest
   )
 
-  // 验证响应数据
-  if (!response.success || !response.user) {
-    throw new Error(response.message || '登录失败')
+  if (!result) {
+    throw new Error('登录失败，请检查密钥是否正确')
   }
 
-  return response.user
+  return result
 }
 
 /**
@@ -102,11 +101,11 @@ export async function logout(): Promise<void> {
  * 使用场景:
  * - 登录页面加载时获取可用的OAuth提供商
  */
-export async function getOAuthConfig(redirect?: string): Promise<OAuthConfig> {
+export async function getOAuthConfig(redirect?: string): Promise<OAuthProvider[]> {
   const params = redirect ? { redirect } : {}
-  const data = await get<OAuthConfig>(getApiPath('/openapi/oauth/config'), params)
+  const data = await get<OAuthProvider[]>(getApiPath('/openapi/oauth/config'), params)
 
-  return data
+  return Array.isArray(data) ? data : []
 }
 
 /**

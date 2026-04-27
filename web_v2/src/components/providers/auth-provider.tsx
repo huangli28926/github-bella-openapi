@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from "react"
 import { getUserInfo, login as apiLogin, logout as apiLogout, getOAuthConfig as apiGetOAuthConfig } from "@/lib/api/auth"
-import type { UserInfo, OAuthConfig } from "@/lib/types/auth"
+import type { UserInfo, OAuthProvider } from "@/lib/types/auth"
 
 /**
  * 认证上下文类型定义
@@ -18,7 +18,7 @@ type AuthContextType = {
   login: (secret: string) => Promise<void>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
-  getOAuthConfig: (redirect?: string) => Promise<OAuthConfig>
+  getOAuthConfig: (redirect?: string) => Promise<OAuthProvider[]>
 }
 
 /**
@@ -54,15 +54,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [])
 
-  /**
-   * 初始化认证状态
-   * 应用启动时自动调用，检查用户是否已登录
-   *
-   * CAS企业登录模式：
-   * - 后端返回401 + X-Redirect-Login响应头
-   * - client.ts自动处理跳转到企业登录页
-   * - 不需要前端显式重定向到/login
-   */
   const initAuth = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -70,9 +61,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(userInfo)
       setError(null)
     } catch (err) {
-      // 401错误表示未登录，不算错误
-      // CAS模式下，client.ts会自动处理X-Redirect-Login响应头并跳转
-      // OAuth模式下，页面会通过路由守卫跳转到/login
       if (err instanceof Error && !err.message.includes('401')) {
         setError(err)
         console.error('Failed to initialize auth:', err)
@@ -104,8 +92,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true)
       setError(null)
-      const userInfo = await apiLogin(secret)
-      setUser(userInfo)
+      const result = await apiLogin(secret)
+
+      if (result !== true) {
+        setUser(result)
+      }
     } catch (err) {
       const error = err instanceof Error ? err : new Error('登录失败')
       setError(error)
@@ -170,21 +161,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [])
 
-  /**
-   * 获取OAuth配置
-   * 用于登录页面获取可用的OAuth提供商
-   *
-   * @param redirect - 登录成功后的跳转地址
-   * @returns OAuth提供商列表和授权URL
-   *
-   * 使用示例:
-   * ```typescript
-   * const config = await getOAuthConfig('/dashboard')
-   * config.providers.forEach(provider => {
-   *   console.log(provider.name, provider.authUrl)
-   * })
-   * ```
-   */
   const getOAuthConfig = useCallback(async (redirect?: string) => {
     return apiGetOAuthConfig(redirect)
   }, [])

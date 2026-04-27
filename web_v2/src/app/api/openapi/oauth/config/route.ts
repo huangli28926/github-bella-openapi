@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
+import { getBackendOrigin } from '@/lib/config/backend';
 import { getOAuthConfigByScenario, currentScenario } from '@/mocks/login/authData';
 
 /**
@@ -10,18 +11,16 @@ import { getOAuthConfigByScenario, currentScenario } from '@/mocks/login/authDat
  * - redirect: 登录成功后的跳转地址（可选）
  *
  * 返回:
- * {
- *   "providers": [
- *     {
- *       "name": "GitHub",
- *       "authUrl": "https://github.com/login/oauth/authorize?..."
- *     },
- *     {
- *       "name": "Google",
- *       "authUrl": "https://accounts.google.com/o/oauth2/v2/auth?..."
- *     }
- *   ]
- * }
+ * [
+ *   {
+ *     "type": "github",
+ *     "authUrl": "https://github.com/login/oauth/authorize?..."
+ *   },
+ *   {
+ *     "type": "google",
+ *     "authUrl": "https://accounts.google.com/o/oauth2/v2/auth?..."
+ *   }
+ * ]
  *
  * 用途:
  * - 登录页面加载时获取可用的 OAuth 提供商
@@ -47,10 +46,9 @@ export async function GET(request: NextRequest) {
   // 真实后端模式
   try {
     // 构造后端 API URL
-    const backendHost = process.env.NEXT_PUBLIC_API_HOST || 'localhost:8080';
     const searchParams = request.nextUrl.searchParams;
     const queryString = searchParams.toString();
-    const backendUrl = `http://${backendHost}/openapi/oauth/config${queryString ? '?' + queryString : ''}`;
+    const backendUrl = `${getBackendOrigin()}/openapi/oauth/config${queryString ? `?${queryString}` : ''}`;
 
     // 转发 Cookie
     const cookie = request.headers.get('cookie') || '';

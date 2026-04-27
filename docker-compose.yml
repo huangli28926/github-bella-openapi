@@ -36,7 +36,7 @@ services:
   web:
     image: ${REGISTRY:-bellatop}/bella-openapi-web:${VERSION:-latest}
     build:
-      context: ./web
+      context: ./web_v2
       args:
         - NODE_ENV=${NODE_ENV:-production}
         - DEPLOY_ENV=${DEPLOY_ENV:-production}

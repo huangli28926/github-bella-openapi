@@ -330,7 +330,7 @@ build_services() {
                 --build-arg REGISTRY=${REGISTRY:-bellatop} \
                 -t ${REGISTRY:-bellatop}/bella-openapi-web:${VERSION:-v1.0.0} \
                 -t ${REGISTRY:-bellatop}/bella-openapi-web:latest \
-                --push ./web
+                --push ./web_v2
                 
             echo "验证多架构镜像..."
             docker buildx imagetools inspect ${REGISTRY:-bellatop}/bella-openapi-api:${VERSION:-v1.0.0}

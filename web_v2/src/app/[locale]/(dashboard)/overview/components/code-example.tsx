@@ -34,9 +34,9 @@ print(response.choices[0].message.content)`
           <Button variant="ghost" size="sm" asChild>
             <Link href="/apikey">{t("viewAPIKeys")}</Link>
           </Button>
-          {config.api.docsUrl && (
+          {config.api?.docsUrl && (
             <Button variant="ghost" size="sm" asChild>
-              <Link href={config.api.docsUrl} target="_blank" rel="noopener noreferrer">{t("browseDocs")}</Link>
+              <Link href={config.api?.docsUrl} target="_blank" rel="noopener noreferrer">{t("browseDocs")}</Link>
             </Button>
           )}
         </nav>

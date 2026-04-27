@@ -7,7 +7,7 @@
  * 2. 通过修改 currentScenario 切换不同场景
  */
 
-import type { UserInfo, OAuthConfig, LoginResponse } from '@/lib/types/auth'
+import type { UserInfo, OAuthProvider } from '@/lib/types/auth'
 
 /**
  * Mock 场景类型
@@ -78,40 +78,31 @@ export const mockUsers = {
 /**
  * OAuth 配置 - GitHub + Google 模式
  */
-export const oauthConfigGithubGoogle: OAuthConfig = {
-  providers: [
-    {
-      name: 'github',
-      displayName: 'GitHub',
-      authUrl: 'https://github.com/login/oauth/authorize?client_id=mock-github-id&redirect_uri=http://localhost:3000/api/oauth/callback&state=mock-state-123'
-    },
-    {
-      name: 'google',
-      displayName: 'Google',
-      authUrl: 'https://accounts.google.com/o/oauth2/v2/auth?client_id=mock-google-id&redirect_uri=http://localhost:3000/api/oauth/callback&state=mock-state-456'
-    }
-  ]
-}
+export const oauthConfigGithubGoogle: OAuthProvider[] = [
+  {
+    type: 'github',
+    authUrl: 'https://github.com/login/oauth/authorize?client_id=mock-github-id&redirect_uri=http://localhost:3000/api/oauth/callback&state=mock-state-123'
+  },
+  {
+    type: 'google',
+    authUrl: 'https://accounts.google.com/o/oauth2/v2/auth?client_id=mock-google-id&redirect_uri=http://localhost:3000/api/oauth/callback&state=mock-state-456'
+  }
+]
 
 /**
  * OAuth 配置 - 仅 GitHub 模式
  */
-export const oauthConfigGithubOnly: OAuthConfig = {
-  providers: [
-    {
-      name: 'github',
-      displayName: 'GitHub',
-      authUrl: 'https://github.com/login/oauth/authorize?client_id=mock-github-id&redirect_uri=http://localhost:3000/api/oauth/callback&state=mock-state-123'
-    }
-  ]
-}
+export const oauthConfigGithubOnly: OAuthProvider[] = [
+  {
+    type: 'github',
+    authUrl: 'https://github.com/login/oauth/authorize?client_id=mock-github-id&redirect_uri=http://localhost:3000/api/oauth/callback&state=mock-state-123'
+  }
+]
 
 /**
  * CAS 企业登录模式 - 空 OAuth 配置
  */
-export const oauthConfigCasMode: OAuthConfig = {
-  providers: []
-}
+export const oauthConfigCasMode: OAuthProvider[] = []
 
 /**
  * 有效的测试密钥列表
@@ -125,7 +116,7 @@ export const validSecrets = [
 /**
  * 根据当前场景获取 OAuth 配置
  */
-export function getOAuthConfigByScenario(scenario: MockScenario = currentScenario): OAuthConfig {
+export function getOAuthConfigByScenario(scenario: MockScenario = currentScenario): OAuthProvider[] {
   switch (scenario) {
     case 'oauth-github-google':
       return oauthConfigGithubGoogle
@@ -143,22 +134,14 @@ export function getOAuthConfigByScenario(scenario: MockScenario = currentScenari
 /**
  * 模拟密钥登录
  * @param secret 用户输入的密钥
- * @returns 登录响应
+ * @returns 用户信息，失败时返回 null
  */
-export function mockSecretLogin(secret: string): LoginResponse {
-  // 检查密钥是否有效
+export function mockSecretLogin(secret: string): UserInfo | null {
   if (validSecrets.includes(secret)) {
-    return {
-      success: true,
-      user: mockUsers.secretUser,
-      message: '登录成功'
-    }
-  } else {
-    return {
-      success: false,
-      message: '密钥无效，请重试'
-    }
+    return mockUsers.secretUser
   }
+
+  return null
 }
 
 /**

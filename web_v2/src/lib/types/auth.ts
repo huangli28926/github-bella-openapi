@@ -28,17 +28,8 @@ export interface UserInfo {
  * 单个OAuth提供商的配置信息
  */
 export interface OAuthProvider {
-  name: string              // 提供商名称: github, google, twitter 等
-  displayName: string       // 显示名称: GitHub, Google, Twitter 等
-  authUrl: string          // 授权URL（已包含state和redirect参数）
-}
-
-/**
- * OAuth配置响应
- * 对应后端: GET /openapi/oauth/config 返回的数据结构
- */
-export interface OAuthConfig {
-  providers: OAuthProvider[]
+  type: string              // 提供商名称: github, google, twitter 等
+  authUrl: string           // 授权URL（已包含state和redirect参数）
 }
 
 /**
@@ -47,16 +38,6 @@ export interface OAuthConfig {
  */
 export interface LoginRequest {
   secret: string
-}
-
-/**
- * 登录响应
- * 对应后端: POST /openapi/login 返回的数据结构
- */
-export interface LoginResponse {
-  success: boolean
-  user?: UserInfo
-  message?: string
 }
 
 /**
