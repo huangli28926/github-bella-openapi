@@ -22,38 +22,13 @@ public class ResponsesApiConverter {
     public static ResponsesApiRequest convertChatCompletionToResponses(CompletionRequest chatRequest, String akCode, ResponsesApiProperty property) {
         ResponsesApiRequest.ResponsesApiRequestBuilder builder = ResponsesApiRequest.builder();
 
-        // 基本参数映射
         builder.model(chatRequest.getModel())
-                .prompt_cache_key(chatRequest.getPrompt_cache_key() == null ? akCode : chatRequest.getPrompt_cache_key())
-                .frequency_penalty(chatRequest.getFrequency_penalty())
-                .presence_penalty(chatRequest.getPresence_penalty())
-                .stream(chatRequest.isStream())
-                .store(false)
-                .background(false)
-                .previous_response_id(null);
+                .stream(chatRequest.isStream());
 
-        // 转换消息列表为 input 数组
         List<ResponsesApiRequest.InputItem> inputItems = convertMessagesToInput(chatRequest.getMessages(), property.isConvertSystemToDeveloper());
         builder.input(inputItems);
-
-        // 转换工具定义
         if(CollectionUtils.isNotEmpty(chatRequest.getTools())) {
-            List<ResponsesApiRequest.ResponsesApiTool> responsesTools = convertToolsToResponsesApi(chatRequest.getTools());
-            builder.tools(responsesTools);
-        }
-
-        // 工具选择配置
-        if(chatRequest.getTool_choice() != null) {
-            builder.tool_choice(chatRequest.getTool_choice());
-        }
-
-        // 推理内容配置
-        if(chatRequest.getReasoning_effort() != null) {
-            ResponsesApiRequest.ReasoningConfig reasoning = ResponsesApiRequest.ReasoningConfig.builder()
-                    .effort(chatRequest.getReasoning_effort().toString())
-                    .summary("auto")
-                    .build();
-            builder.reasoning(reasoning);
+            builder.tools(convertToolsToResponsesApi(chatRequest.getTools()));
         }
 
         return builder.build();
@@ -71,7 +46,6 @@ public class ResponsesApiConverter {
 
         for (Message message : messages) {
             if("tool".equals(message.getRole())) {
-                // 工具调用结果转换为 function_call_output
                 ResponsesApiRequest.InputItem outputItem = ResponsesApiRequest.InputItem.builder()
                         .type("function_call_output")
                         .call_id(message.getTool_call_id())
@@ -80,7 +54,6 @@ public class ResponsesApiConverter {
                         .build();
                 inputItems.add(outputItem);
             } else if(message.getTool_calls() != null && !message.getTool_calls().isEmpty()) {
-                // 助手的工具调用转换
                 for (Message.ToolCall toolCall : message.getTool_calls()) {
                     ResponsesApiRequest.InputItem callItem = ResponsesApiRequest.InputItem.builder()
                             .type("function_call")
@@ -94,7 +67,6 @@ public class ResponsesApiConverter {
             } else {
                 String role = convertSystemToDeveloper && "system".equals(message.getRole()) ? "developer" : message.getRole();
                 ResponsesApiRequest.InputItem messageItem = ResponsesApiRequest.InputItem.builder()
-                        .type("message")
                         .role(role)
                         .content(convertMessageContent(message))
                         .build();
@@ -115,12 +87,13 @@ public class ResponsesApiConverter {
             return null;
         }
 
-        // 如果是字符串内容，直接返回
         if(message.getContent() instanceof String) {
-            return message.getContent();
+            return Collections.singletonList(ResponsesApiRequest.ContentItem.builder()
+                    .type("assistant".equals(message.getRole()) ? "output_text" : "input_text")
+                    .text((String) message.getContent())
+                    .build());
         }
 
-        // 如果是复杂内容（多模态），转换为 Responses API 格式
         if(message.getContent() instanceof List) {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> contentList = (List<Map<String, Object>>) message.getContent();
@@ -152,7 +125,6 @@ public class ResponsesApiConverter {
                     builder.type("input_audio").audio_url((String) item.get("url"));
                     break;
                 default:
-                    // 其他类型保持原样
                     builder.type(type);
                     break;
                 }
@@ -287,7 +259,6 @@ public class ResponsesApiConverter {
                     }
                     break;
                 default:
-                    log.debug("Unknown output item type: {}", item.getType());
                     break;
                 }
             }

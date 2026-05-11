@@ -20,6 +20,9 @@ import org.springframework.stereotype.Component;
 @Component("ResponsesApiAdaptor")
 @Slf4j
 public class ResponsesApiAdaptor implements CompletionAdaptor<ResponsesApiProperty> {
+    private static final String HUOSHAN_SUPPLIER = "huoshan";
+    private static final String HUOSHAN_ARK_SUPPLIER = "火山方舟";
+    private static final String WEB_SEARCH_TOOL_TYPE = "web_search";
 
     @Override
     public String getDescription() {
@@ -33,11 +36,10 @@ public class ResponsesApiAdaptor implements CompletionAdaptor<ResponsesApiProper
 
     @Override
     public CompletionResponse completion(CompletionRequest request, String url, ResponsesApiProperty property) {
-        log.debug("Converting Chat Completion request to Responses API format");
-
         // 转换请求格式
         ResponsesApiRequest responsesRequest = ResponsesApiConverter.convertChatCompletionToResponses(request,
                 EndpointContext.getProcessData().getAkCode(), property);
+        patchHuoshanWebSearchTools(request, responsesRequest);
 
         // 构建HTTP请求
         Request httpRequest = buildResponsesApiRequest(responsesRequest, url, property);
@@ -53,18 +55,16 @@ public class ResponsesApiAdaptor implements CompletionAdaptor<ResponsesApiProper
         CompletionResponse response = ResponsesApiConverter.convertResponsesToChatCompletion(responsesResponse);
         response.setCreated(DateTimeUtils.getCurrentSeconds());
 
-        log.debug("Converted Responses API response to Chat Completion format");
         return response;
     }
 
     @Override
     public void streamCompletion(CompletionRequest request, String url, ResponsesApiProperty property,
             Callbacks.StreamCompletionCallback callback) {
-        log.debug("Converting Chat Completion stream request to Responses API format");
-
         // 转换请求格式
         ResponsesApiRequest responsesRequest = ResponsesApiConverter.convertChatCompletionToResponses(request,
                 EndpointContext.getProcessData().getAkCode(), property);
+        patchHuoshanWebSearchTools(request, responsesRequest);
         responsesRequest.setStream(true);  // 确保启用流式
 
         // 创建 SSE 转换器和监听器
@@ -75,8 +75,50 @@ public class ResponsesApiAdaptor implements CompletionAdaptor<ResponsesApiProper
         clearLargeData(request, responsesRequest);
         // 发送流式请求
         HttpUtils.streamRequest(httpRequest, listener);
+    }
 
-        log.debug("Started Responses API stream conversion");
+    private void patchHuoshanWebSearchTools(CompletionRequest request, ResponsesApiRequest responsesRequest) {
+        if(!isHuoshanRequest() || request == null || request.getTools() == null || responsesRequest.getTools() == null) {
+            return;
+        }
+        if(request.getTools().size() != responsesRequest.getTools().size()) {
+            return;
+        }
+
+        for (int i = 0; i < request.getTools().size(); i++) {
+            Message.Tool sourceTool = request.getTools().get(i);
+            ResponsesApiRequest.ResponsesApiTool targetTool = responsesRequest.getTools().get(i);
+            if(!shouldConvertToHuoshanWebSearch(sourceTool)) {
+                continue;
+            }
+            targetTool.setType(WEB_SEARCH_TOOL_TYPE);
+            targetTool.setName(null);
+            targetTool.setDescription(null);
+            targetTool.setParameters(null);
+            targetTool.setStrict(null);
+            if(MapUtils.isNotEmpty(sourceTool.getExtraBody())) {
+                sourceTool.getExtraBody().forEach(targetTool::setExtraBodyField);
+            }
+        }
+    }
+
+    private boolean isHuoshanRequest() {
+        String supplier = EndpointContext.getProcessData().getSupplier();
+        return StringUtils.equalsIgnoreCase(HUOSHAN_SUPPLIER, supplier)
+                || StringUtils.equals(HUOSHAN_ARK_SUPPLIER, supplier);
+    }
+
+    private boolean shouldConvertToHuoshanWebSearch(Message.Tool tool) {
+        if(tool == null) {
+            return false;
+        }
+        if(StringUtils.equals(tool.getType(), WEB_SEARCH_TOOL_TYPE)) {
+            return true;
+        }
+        return StringUtils.equals(tool.getType(), "function")
+                && tool.getFunction() != null
+                && StringUtils.equals(tool.getFunction().getName(), WEB_SEARCH_TOOL_TYPE)
+                && MapUtils.isNotEmpty(tool.getExtraBody());
     }
 
     /**
@@ -107,4 +149,5 @@ public class ResponsesApiAdaptor implements CompletionAdaptor<ResponsesApiProper
 
         return builder.build();
     }
+
 }
