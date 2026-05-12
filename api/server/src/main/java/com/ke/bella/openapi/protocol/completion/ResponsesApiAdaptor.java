@@ -117,8 +117,7 @@ public class ResponsesApiAdaptor implements CompletionAdaptor<ResponsesApiProper
         }
         return StringUtils.equals(tool.getType(), "function")
                 && tool.getFunction() != null
-                && StringUtils.equals(tool.getFunction().getName(), WEB_SEARCH_TOOL_TYPE)
-                && MapUtils.isNotEmpty(tool.getExtraBody());
+                && StringUtils.equals(tool.getFunction().getName(), WEB_SEARCH_TOOL_TYPE);
     }
 
     /**

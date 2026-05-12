@@ -95,3 +95,4 @@ web_v2/bin
 *.tsbuildinfo
 
 private-loggers.xml
+/api/server/src/main/resources/application-local.yml
