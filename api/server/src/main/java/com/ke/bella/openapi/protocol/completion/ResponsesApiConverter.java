@@ -187,6 +187,7 @@ public class ResponsesApiConverter {
                 .prompt_tokens(usage.getInput_tokens())
                 .completion_tokens(usage.getOutput_tokens())
                 .total_tokens(usage.getTotal_tokens())
+                .tool_usage(usage.getTool_usage())
                 .build();
         if(usage.getInput_tokens_details() != null) {
             CompletionResponse.TokensDetail detail = new CompletionResponse.TokensDetail();
